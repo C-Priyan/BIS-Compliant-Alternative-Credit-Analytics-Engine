@@ -256,7 +256,6 @@ st.html("""
 </style>
 """)
 
-
 # --- 2. ADVANCED DATA SIMULATION (BUSINESS ANALYTICS) ---
 @st.cache_data
 def generate_vendor_upi_logs():
@@ -265,23 +264,19 @@ def generate_vendor_upi_logs():
     records = []
 
     for d in dates:
-        # 1. Inward Revenue (Customers buying goods)
         num_sales = np.random.randint(20, 50)
         for _ in range(num_sales):
             records.append({'Date': d.date(), 'Amount': np.random.uniform(30, 200), 'Category': 'INWARD: Customer Sale', 'Flow': 'In'})
 
-        # 2. Outward Supplier Costs (Raw materials)
         num_supplies = np.random.randint(1, 3)
         for _ in range(num_supplies):
             records.append({'Date': d.date(), 'Amount': np.random.uniform(300, 800), 'Category': 'OUTWARD: Supplier/Wholesale', 'Flow': 'Out'})
 
-    # 3. Fixed Outward Deductions (Rent, Utilities, existing informal debts)
-    for i in [1, 15, 28]:  # Simulated billing dates
+    for i in [1, 15, 28]:
         d = dates[i]
         records.append({'Date': d.date(), 'Amount': np.random.uniform(1500, 3000), 'Category': 'OUTWARD: Utility/Rent', 'Flow': 'Out'})
 
     return pd.DataFrame(records).sort_values(by='Date').reset_index(drop=True)
-
 
 @st.cache_resource
 def train_ai_model():
@@ -289,19 +284,16 @@ def train_ai_model():
     np.random.seed(42)
     n_samples = 1000
 
-    # Advanced Features
     df = pd.DataFrame({
         'monthly_revenue': np.random.uniform(15000, 90000, n_samples),
-        'txn_velocity': np.random.randint(300, 1500, n_samples),  # Txns per month
-        'dti_ratio': np.random.uniform(0.1, 0.8, n_samples),  # Debt/Fixed Costs to Income
+        'txn_velocity': np.random.randint(300, 1500, n_samples),
+        'dti_ratio': np.random.uniform(0.1, 0.8, n_samples),
         'supplier_consistency': np.random.uniform(0.2, 1.0, n_samples)
     })
 
-    # Ground Truth Logic: Good borrower has low DTI, high velocity, consistent supplier payouts
     df['risk_label'] = np.where(
         (df['dti_ratio'] < 0.45) & (df['monthly_revenue'] > 25000) & (df['supplier_consistency'] > 0.6),
-        0,  # Low Risk
-        1   # High Risk
+        0, 1
     )
 
     X = df.drop('risk_label', axis=1)
@@ -352,8 +344,10 @@ with tab1:
         with st.container(border=True):
             st.markdown("**🪪 Entity identification**")
             st.caption("Capture the legal name and a masked identifier only — no full Aadhaar is stored.")
-            vendor_name = st.text_input("Entity / proprietor name", "M/S Fresh Veggies (Prop: C. Priyan)")
-            vendor_id = st.text_input("Udyam / Aadhaar reference (masked)", "XXXX-XXXX-4092")
+            
+            # Form Validation added here
+            vendor_name = st.text_input("Entity / proprietor name", "M/S Fresh Veggies (Prop: C. Priyan)", max_chars=100)
+            vendor_id = st.text_input("Udyam / Aadhaar reference (masked)", "XXXX-XXXX-4092", max_chars=20)
 
             st.divider()
             st.markdown("**🔐 Digital footprint authorization**")
@@ -361,43 +355,35 @@ with tab1:
 
             with st.container(border=True):
                 st.markdown("**Transaction mapping**")
-                consent_sms = st.checkbox(
-                    "I authorize parsing of device SMS exclusively for UPI transaction mapping."
-                )
+                consent_sms = st.checkbox("I authorize parsing of device SMS exclusively for UPI transaction mapping.")
             with st.container(border=True):
                 st.markdown("**Retention & purge**")
-                consent_retention = st.checkbox(
-                    "I acknowledge data will be securely purged 24 hours after assessment."
-                )
+                consent_retention = st.checkbox("I acknowledge data will be securely purged 24 hours after assessment.")
 
             if consent_sms and consent_retention:
-                if st.button("Authenticate & ingest data", type="primary", width="stretch"):
-                    with st.spinner("Opening a TLS 1.3 session with the underwriting gateway… validating encrypted UPI logs…"):
-                        df_logs = generate_vendor_upi_logs()
-                        st.session_state['logs'] = df_logs
-                        st.session_state['vendor_name'] = vendor_name
-                        st.session_state['vendor_id'] = vendor_id
-                        # Generate a fake audit hash
-                        st.session_state['audit_hash'] = hashlib.sha256(df_logs.to_json().encode()).hexdigest()
-                        st.session_state['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        st.success("Session verified. Encrypted payload is ready on the Underwriting dashboard.")
-                        st.toast("Secure ingest complete.", icon=":material/verified:")
+                if len(vendor_name.strip()) == 0 or len(vendor_id.strip()) == 0:
+                    st.warning("⚠️ Please provide a valid Entity Name and Reference ID to continue.")
+                else:
+                    if st.button("Authenticate & ingest data", type="primary", use_container_width=True):
+                        with st.spinner("Opening a TLS 1.3 session with the underwriting gateway… validating encrypted UPI logs…"):
+                            df_logs = generate_vendor_upi_logs()
+                            st.session_state['logs'] = df_logs
+                            st.session_state['vendor_name'] = vendor_name
+                            st.session_state['vendor_id'] = vendor_id
+                            st.session_state['audit_hash'] = hashlib.sha256(df_logs.to_json().encode()).hexdigest()
+                            st.session_state['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            st.success("Session verified. Encrypted payload is ready on the Underwriting dashboard.")
+                            st.toast("Secure ingest complete.", icon=":material/verified:")
             else:
                 st.caption("Complete both consent items to enable authentication.")
 
         if 'logs' in st.session_state:
-            st.success(
-                "Data successfully verified and encrypted. Proceed to the Underwriting dashboard.",
-                icon=":material/check_circle:",
-            )
+            st.success("Data successfully verified and encrypted. Proceed to the Underwriting dashboard.", icon=":material/check_circle:")
 
     with colB:
         with st.container(border=True, height="stretch"):
             st.markdown("**⚖️ Regulatory disclosures**")
-            st.info(
-                "Notice to applicant: processing is purpose-limited to credit assessment.",
-                icon=":material/policy:",
-            )
+            st.info("Notice to applicant: processing is purpose-limited to credit assessment.", icon=":material/policy:")
             st.markdown("""
             - Your data is processed entirely **in-memory**.
             - We do not access personal messages, OTPs, or contact lists.
@@ -414,29 +400,22 @@ with tab1:
 # ==========================================
 with tab2:
     if 'logs' not in st.session_state:
-        st.warning(
-            "Awaiting applicant data ingestion in Tab 1. Complete consent and authenticate to populate this book.",
-            icon=":material/hourglass_empty:",
-        )
+        st.warning("Awaiting applicant data ingestion in Tab 1. Complete consent and authenticate to populate this book.", icon=":material/hourglass_empty:")
     else:
         df = st.session_state['logs']
-        st.subheader(f":material/account_balance_wallet: Credit readiness report")
+        st.subheader(":material/account_balance_wallet: Credit readiness report")
         st.caption(f"Applicant: **{st.session_state['vendor_name']}** · Masked ID on file · 30-day UPI footprint")
         st.divider()
 
-        # Deep Feature Engineering
         inflow_df = df[df['Flow'] == 'In']
         outflow_df = df[df['Flow'] == 'Out']
-
         monthly_revenue = inflow_df['Amount'].sum()
         total_outflow = outflow_df['Amount'].sum()
         fixed_costs = df[df['Category'] == 'OUTWARD: Utility/Rent']['Amount'].sum()
-
         txn_velocity = len(inflow_df)
         dti_ratio = (fixed_costs / monthly_revenue) if monthly_revenue > 0 else 1.0
-        supplier_consistency = len(df[df['Category'] == 'OUTWARD: Supplier/Wholesale']) / 30.0  # regular daily/bi-daily buys
+        supplier_consistency = len(df[df['Category'] == 'OUTWARD: Supplier/Wholesale']) / 30.0 
 
-        # Prepare for ML
         vendor_metrics = pd.DataFrame([{
             'monthly_revenue': monthly_revenue,
             'txn_velocity': txn_velocity,
@@ -444,40 +423,27 @@ with tab2:
             'supplier_consistency': supplier_consistency
         }])
 
-        # ML Prediction
         model, scaler = train_ai_model()
         X_eval = scaler.transform(vendor_metrics)
-        risk_prob = model.predict_proba(X_eval)[0][1]  # Probability of default
-        trust_score = int((1 - risk_prob) * 850)  # Scale to traditional CIBIL-like range (0-850)
+        risk_prob = model.predict_proba(X_eval)[0][1] 
+        trust_score = int((1 - risk_prob) * 850) 
 
-        # Top Metrics Cards
+        # Stabilized 4-column layout
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric(
-            "Alt. trust score",
-            f"{trust_score} / 850",
-            "Approve" if trust_score > 600 else "Reject"
-        )
+        c1.metric("Alt. trust score", f"{trust_score} / 850", "Approve" if trust_score > 600 else "Reject")
         c2.metric("30-day revenue", f"₹{monthly_revenue:,.2f}")
-        c3.metric(
-            "Debt-to-income (DTI)",
-            f"{(dti_ratio * 100):.1f}%",
-            "-Low Risk" if dti_ratio < 0.4 else "High Risk",
-            delta_color="inverse"
-        )
+        c3.metric("Debt-to-income (DTI)", f"{(dti_ratio * 100):.1f}%", "-Low Risk" if dti_ratio < 0.4 else "High Risk", delta_color="inverse")
         c4.metric("Approved limit (est.)", f"₹{int(monthly_revenue * 0.4):,}")
 
         st.divider()
 
-        # Advanced Visualizations
         col_chart, col_ai = st.columns([3, 2], gap="large")
-
         with col_chart:
             with st.container(border=True):
                 st.markdown("**📈 Cash flow dynamics**")
                 st.caption("Daily inward receipts versus outward supplier and fixed-cost drains.")
                 daily_flow = df.groupby(['Date', 'Flow'])['Amount'].sum().unstack().fillna(0)
-                st.bar_chart(daily_flow, color=["#10B981", "#EF4444"])  # Green for In, Red for Out
-
+                st.bar_chart(daily_flow, color=["#10B981", "#EF4444"]) 
         with col_ai:
             with st.container(border=True):
                 st.markdown("**🧠 AI decision transparency (IS 42001)**")
@@ -493,7 +459,7 @@ with tab2:
             m1.metric("Inflow events", f"{len(inflow_df):,}")
             m2.metric("Outflow events", f"{len(outflow_df):,}")
             m3.metric("Total outflow", f"₹{total_outflow:,.2f}")
-            st.dataframe(df, hide_index=True, width="stretch")
+            st.dataframe(df, hide_index=True, use_container_width=True)
 
 # ==========================================
 # TAB 3: COMPLIANCE & AUDIT LOG
@@ -505,7 +471,6 @@ with tab3:
 
     if 'audit_hash' in st.session_state:
         st.success("System status: SECURE. No anomalies detected.", icon=":material/verified_user:")
-
         purge_at = (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
         terminal_code = f"""[SYSTEM]     Initiating trace route... OK
 [TIMESTAMP]  {st.session_state['timestamp']} (IST)
@@ -530,20 +495,11 @@ with tab3:
           <pre><span class="vc-ok">{terminal_code}</span></pre>
         </div>
         """)
-
         st.divider()
         with st.expander("📋 Model governance register", expanded=True, icon=":material/gavel:"):
             st.table(pd.DataFrame({
                 "Audit Metric": ["Algorithm Type", "Fairness Constraint", "Data Retention", "Consent Token"],
-                "Status": [
-                    "RandomForest (Interpretable)",
-                    "DTI-Capped, No Demographic Inputs",
-                    "24 Hours Post-Session",
-                    f"Active ({st.session_state['timestamp']})",
-                ]
+                "Status": ["RandomForest (Interpretable)", "DTI-Capped, No Demographic Inputs", "24 Hours Post-Session", f"Active ({st.session_state['timestamp']})"]
             }))
     else:
-        st.info(
-            "System idle. Awaiting applicant session initialization from the Vendor gateway.",
-            icon=":material/pause_circle:",
-        )
+        st.info("System idle. Awaiting applicant session initialization from the Vendor gateway.", icon=":material/pause_circle:")
